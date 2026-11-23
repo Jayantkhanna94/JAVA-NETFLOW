@@ -1,6 +1,12 @@
+
 # NetFlow System - Test Evidence & Traceability Matrix
 
 ## 1. Test Cases Table (Milestones 1 & 2)
+=======
+# NetFlow System - Milestone 1 Test Evidence & Traceability Matrix
+
+## 1. Milestone 1 Test Cases Table
+
 
 | Test ID | Feature Tested | Input Data | Expected Result | Actual Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -10,6 +16,7 @@
 | **T05** | Invalid Device: Blank / Empty Device Name | `id="DEV-BAD-02"`, `name="   "`, `deviceType=SERVER`, `managementIp="10.0.0.5"` | Blank string check fails; constructor aborts instantiation and throws `InvalidDeviceException`. | Caught `InvalidDeviceException`: `"Device name cannot be null or empty"` | **PASS** |
 | **T06** | Invalid Flow: Port Out of Valid Range | `flowId="FLW-BAD-01"`, `sourceIp="192.168.1.1"`, `destIp="10.0.0.1"`, `protocol=TCP`, `sourcePort=70000`, `destPort=80` | Port validation check (`0 <= port <= 65535`) fails; constructor throws `InvalidFlowException`. | Caught `InvalidFlowException`: `"Source port must be between 0 and 65535 (got: 70000)"` | **PASS** |
 | **T07** | Invalid Flow: Negative Byte Count | `flowId="FLW-BAD-02"`, `sourceIp="192.168.1.1"`, `destIp="10.0.0.1"`, `protocol=UDP`, `sourcePort=5300`, `destPort=53`, `packetCount=100`, `byteCount=-500` | Non-negative telemetry validation fails; constructor throws `InvalidFlowException`. | Caught `InvalidFlowException`: `"Byte count must be non-null and >= 0 (got: -500)"` | **PASS** |
+
 | **T08** | Device CRUD Operations (Add, Retrieve, Remove from Map/Set) | Register 3 valid devices (`DEV-RTR-01`, `DEV-SW-01`, `DEV-SRV-01`); query `getDevice("DEV-SW-01")`; remove `DEV-SRV-01` | Devices added to `HashMap`/`HashSet`; `getDevice()` returns device by ID; `removeDevice()` removes device from both structures and decrements count to 2. | 3 devices successfully registered; `getDevice("DEV-SW-01")` returned Access-Switch-Floor1; `removeDevice("DEV-SRV-01")` decremented count to 2 and released IP `192.168.1.10`. | **PASS** |
 | **T09** | Duplicate Prevention (Attempting to add a device with an existing ID/IP) | Attempt to add device `DEV-FW-01` with existing management IP `192.168.1.1` (already used by `DEV-RTR-01`) or existing ID `DEV-RTR-01` | Service checks `HashMap` keys and `HashSet` IPs; aborts insertion and throws `DuplicateRecordException`. | Insertion aborted; caught `DuplicateRecordException`: `"Device with Management IP '192.168.1.1' already exists."` | **PASS** |
 | **T10** | Flow Sorting and Filtering (`getFlowsByProtocol` and `getTopHighVolumeFlows`) | 5 flows registered (2 TCP, 2 UDP, 1 ICMP); filter by `NetworkProtocol.TCP`; sort top 3 by volume with `getTopHighVolumeFlows(3)` | `getFlowsByProtocol()` returns 2 TCP flows; `getTopHighVolumeFlows(3)` returns 3 flows strictly ordered descending by `byteCount`. | Returned exactly 2 TCP flows (`FLW-TCP-01`, `FLW-TCP-02`); Top 3 ordered descending: #1 FLW-UDP-02 (35,000,000 B), #2 FLW-TCP-02 (12,000,000 B), #3 FLW-TCP-01 (1,500,000 B). | **PASS** |
@@ -19,6 +26,13 @@
 ## 2. Console Test Harness Output
 
 ### Milestone 1 Execution (`NetFlowApp`)
+=======
+
+---
+
+## 2. Test Execution Output from `NetFlowApp`
+
+>>>>>>> f9de4266f843a7ba065c7f526b0b0c110aaa021a
 ```text
 ===============================================================================
        NETFLOW: NETWORK TRAFFIC MONITORING & MANAGEMENT SYSTEM
@@ -82,6 +96,7 @@ After acknowledgment:
 ===============================================================================
 ```
 
+
 ### Milestone 2 Execution (`Milestone2App`)
 ```text
 ===============================================================================
@@ -138,3 +153,12 @@ After acknowledgment:
 | `DeviceServiceTest` | 7 | 7 | 0 | Device CRUD (T08), Duplicate IP & ID prevention (T09), IP release |
 | `TrafficFlowServiceTest` | 5 | 5 | 0 | Flow storage, duplicate IDs, protocol filtering (T10), Comparator sorting (T10) |
 | **Total** | **22** | **22** | **0** | **100% Pass Rate** |
+=======
+---
+
+## 3. Automated JUnit 5 Verification Suite
+
+The project includes automated JUnit 5 test classes under `netflow.test`:
+- `NetworkDeviceTest`: Validates successful initialization (T01), IPv4 regex filtering (T04), empty/whitespace strings (T05), null parameter handling, and `Monitorable` summary output.
+- `TrafficFlowTest`: Validates telemetry fields (T02), port bounds checking `[0, 65535]` (T06), negative byte counts (T07), negative packet counts, and nullable port wrapper handling for ICMP protocols.
+>>>>>>> f9de4266f843a7ba065c7f526b0b0c110aaa021a
