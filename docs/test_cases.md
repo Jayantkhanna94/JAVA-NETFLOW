@@ -1,12 +1,6 @@
-
 # NetFlow System - Test Evidence & Traceability Matrix
 
-## 1. Test Cases Table (Milestones 1 & 2)
-=======
-# NetFlow System - Milestone 1 Test Evidence & Traceability Matrix
-
-## 1. Milestone 1 Test Cases Table
-
+## 1. Test Cases Table (Milestones 1, 2 & 3)
 
 | Test ID | Feature Tested | Input Data | Expected Result | Actual Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -16,23 +10,17 @@
 | **T05** | Invalid Device: Blank / Empty Device Name | `id="DEV-BAD-02"`, `name="   "`, `deviceType=SERVER`, `managementIp="10.0.0.5"` | Blank string check fails; constructor aborts instantiation and throws `InvalidDeviceException`. | Caught `InvalidDeviceException`: `"Device name cannot be null or empty"` | **PASS** |
 | **T06** | Invalid Flow: Port Out of Valid Range | `flowId="FLW-BAD-01"`, `sourceIp="192.168.1.1"`, `destIp="10.0.0.1"`, `protocol=TCP`, `sourcePort=70000`, `destPort=80` | Port validation check (`0 <= port <= 65535`) fails; constructor throws `InvalidFlowException`. | Caught `InvalidFlowException`: `"Source port must be between 0 and 65535 (got: 70000)"` | **PASS** |
 | **T07** | Invalid Flow: Negative Byte Count | `flowId="FLW-BAD-02"`, `sourceIp="192.168.1.1"`, `destIp="10.0.0.1"`, `protocol=UDP`, `sourcePort=5300`, `destPort=53`, `packetCount=100`, `byteCount=-500` | Non-negative telemetry validation fails; constructor throws `InvalidFlowException`. | Caught `InvalidFlowException`: `"Byte count must be non-null and >= 0 (got: -500)"` | **PASS** |
-
 | **T08** | Device CRUD Operations (Add, Retrieve, Remove from Map/Set) | Register 3 valid devices (`DEV-RTR-01`, `DEV-SW-01`, `DEV-SRV-01`); query `getDevice("DEV-SW-01")`; remove `DEV-SRV-01` | Devices added to `HashMap`/`HashSet`; `getDevice()` returns device by ID; `removeDevice()` removes device from both structures and decrements count to 2. | 3 devices successfully registered; `getDevice("DEV-SW-01")` returned Access-Switch-Floor1; `removeDevice("DEV-SRV-01")` decremented count to 2 and released IP `192.168.1.10`. | **PASS** |
 | **T09** | Duplicate Prevention (Attempting to add a device with an existing ID/IP) | Attempt to add device `DEV-FW-01` with existing management IP `192.168.1.1` (already used by `DEV-RTR-01`) or existing ID `DEV-RTR-01` | Service checks `HashMap` keys and `HashSet` IPs; aborts insertion and throws `DuplicateRecordException`. | Insertion aborted; caught `DuplicateRecordException`: `"Device with Management IP '192.168.1.1' already exists."` | **PASS** |
 | **T10** | Flow Sorting and Filtering (`getFlowsByProtocol` and `getTopHighVolumeFlows`) | 5 flows registered (2 TCP, 2 UDP, 1 ICMP); filter by `NetworkProtocol.TCP`; sort top 3 by volume with `getTopHighVolumeFlows(3)` | `getFlowsByProtocol()` returns 2 TCP flows; `getTopHighVolumeFlows(3)` returns 3 flows strictly ordered descending by `byteCount`. | Returned exactly 2 TCP flows (`FLW-TCP-01`, `FLW-TCP-02`); Top 3 ordered descending: #1 FLW-UDP-02 (35,000,000 B), #2 FLW-TCP-02 (12,000,000 B), #3 FLW-TCP-01 (1,500,000 B). | **PASS** |
+| **T11** | Concurrent Threads & Synchronization | Launch multiple threads (10-30 threads) simultaneously updating shared totals via `addFlowStats()` | Final totals match exact processed records without lost updates or race conditions. | 10 worker threads completed; `sharedStats` totals: 10 flows, 10,000 bytes (100% match with expected mathematical values, 0 lost updates). | **PASS** |
+| **T12** | Thread Interruption | Interrupt a processing thread (`FlowWorker-Interruptible`) via `interrupt()` during execution | Interruption is caught and handled safely; thread terminates cleanly without crashing or corrupting shared statistics. | Interrupted thread logged warning, cleanly exited without throwing uncaught exceptions, and left shared statistics uncontaminated. | **PASS** |
 
 ---
 
 ## 2. Console Test Harness Output
 
 ### Milestone 1 Execution (`NetFlowApp`)
-=======
-
----
-
-## 2. Test Execution Output from `NetFlowApp`
-
->>>>>>> f9de4266f843a7ba065c7f526b0b0c110aaa021a
 ```text
 ===============================================================================
        NETFLOW: NETWORK TRAFFIC MONITORING & MANAGEMENT SYSTEM
@@ -96,7 +84,6 @@ After acknowledgment:
 ===============================================================================
 ```
 
-
 ### Milestone 2 Execution (`Milestone2App`)
 ```text
 ===============================================================================
@@ -142,9 +129,57 @@ After acknowledgment:
 ===============================================================================
 ```
 
+### Milestone 3 Execution (`Milestone3App`)
+```text
+===============================================================================
+  NETFLOW: MILESTONE 3 - MULTITHREADING & SYNCHRONIZATION TEST HARNESS
+===============================================================================
+
+--- MILESTONE 3: MULTITHREADING TEST (T11 & T12) ---
+-------------------------------------------------------------------------------
+[Step 1] Initializing shared MonitoringStats resource...
+  Initial State: MonitoringStats [Flows Processed: 0 | Total Bytes: 0]
+
+[Step 2] Generating 10 synthetic TrafficFlow records (1,000 bytes each)...
+  [SUCCESS] 10 flows generated. Expected Total Bytes: 10,000 bytes
+
+[Step 3] Launching 10 concurrent worker threads via Thread.start()...
+
+[Step 4] Launching extra thread and triggering Thread.interrupt() (Test T12)...
+[FlowWorker-Interruptible] Processing interrupted for flow: FLW-INTERRUPT-99
+  [SUCCESS] Interrupted thread terminated cleanly.
+
+[Step 5] Waiting for all 10 worker threads to complete via Thread.join()...
+[FlowWorker-10] Successfully processed flow: FLW-SIM-10 (1,000 bytes)
+[FlowWorker-1] Successfully processed flow: FLW-SIM-01 (1,000 bytes)
+[FlowWorker-6] Successfully processed flow: FLW-SIM-06 (1,000 bytes)
+[FlowWorker-3] Successfully processed flow: FLW-SIM-03 (1,000 bytes)
+[FlowWorker-2] Successfully processed flow: FLW-SIM-02 (1,000 bytes)
+[FlowWorker-5] Successfully processed flow: FLW-SIM-05 (1,000 bytes)
+[FlowWorker-7] Successfully processed flow: FLW-SIM-07 (1,000 bytes)
+[FlowWorker-8] Successfully processed flow: FLW-SIM-08 (1,000 bytes)
+[FlowWorker-9] Successfully processed flow: FLW-SIM-09 (1,000 bytes)
+[FlowWorker-4] Successfully processed flow: FLW-SIM-04 (1,000 bytes)
+  [SUCCESS] All 10 worker threads have completed execution.
+
+--- SYNCHRONIZATION INTEGRITY VERIFICATION ---
+-------------------------------------------------------------------------------
+  Expected Flows Processed : 10
+  Actual Flows Processed   : 10
+  Expected Total Bytes     : 10,000 bytes
+  Actual Total Bytes       : 10,000 bytes
+
+  >>> VERIFICATION RESULT: PASS <<<
+  Zero data loss or race conditions detected!
+  The 'synchronized' critical section correctly protected shared state across all threads.
+===============================================================================
+  MILESTONE 3 MULTITHREADING TESTS COMPLETED SUCCESSFULLY
+===============================================================================
+```
+
 ---
 
-## 3. Automated Test Suite (JUnit 5)
+## 3. Automated Test Suite Summary (JUnit 5)
 
 | Test Suite Class | Tests Run | Passed | Failed | Target Features |
 | :--- | :--- | :--- | :--- | :--- |
@@ -152,13 +187,6 @@ After acknowledgment:
 | `TrafficFlowTest` | 5 | 5 | 0 | Flow creation (T02), port bounds (T06), negative bytes (T07), null ports |
 | `DeviceServiceTest` | 7 | 7 | 0 | Device CRUD (T08), Duplicate IP & ID prevention (T09), IP release |
 | `TrafficFlowServiceTest` | 5 | 5 | 0 | Flow storage, duplicate IDs, protocol filtering (T10), Comparator sorting (T10) |
-| **Total** | **22** | **22** | **0** | **100% Pass Rate** |
-=======
----
-
-## 3. Automated JUnit 5 Verification Suite
-
-The project includes automated JUnit 5 test classes under `netflow.test`:
-- `NetworkDeviceTest`: Validates successful initialization (T01), IPv4 regex filtering (T04), empty/whitespace strings (T05), null parameter handling, and `Monitorable` summary output.
-- `TrafficFlowTest`: Validates telemetry fields (T02), port bounds checking `[0, 65535]` (T06), negative byte counts (T07), negative packet counts, and nullable port wrapper handling for ICMP protocols.
->>>>>>> f9de4266f843a7ba065c7f526b0b0c110aaa021a
+| `MonitoringStatsTest` | 2 | 2 | 0 | Concurrent threads & synchronized critical section (T11), reset |
+| `FlowProcessingTaskTest` | 3 | 3 | 0 | Thread interruption (T12), normal execution, null validations |
+| **Total** | **27** | **27** | **0** | **100% Pass Rate** |
