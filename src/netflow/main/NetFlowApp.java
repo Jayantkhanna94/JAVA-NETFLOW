@@ -1,205 +1,165 @@
 package netflow.main;
 
-import netflow.contract.Monitorable;
+import netflow.dao.DeviceDAO;
+import netflow.dao.TrafficFlowDAO;
 import netflow.exception.InvalidDeviceException;
 import netflow.exception.InvalidFlowException;
-import netflow.model.AlertSeverity;
 import netflow.model.DeviceStatus;
 import netflow.model.DeviceType;
-import netflow.model.NetworkAlert;
 import netflow.model.NetworkDevice;
 import netflow.model.NetworkProtocol;
 import netflow.model.TrafficFlow;
+import netflow.concurrency.FlowQueue;
+import netflow.concurrency.FlowProducer;
+import netflow.concurrency.FlowConsumer;
 
-/**
- * NetFlowApp - Milestone 1 Test Harness and Verification Runner.
- * Proves OOP model, string validation, interface polymorphism,
- * and custom exception handling without using Collections, Threads, or JDBC.
- */
+import java.util.List;
+import java.util.Scanner;
+import java.util.UUID;
+
 public class NetFlowApp {
 
+    private static final Scanner scanner = new Scanner(System.in);
+    private static final DeviceDAO deviceDAO = new DeviceDAO();
+    private static final TrafficFlowDAO flowDAO = new TrafficFlowDAO();
+
     public static void main(String[] args) {
-        System.out.println("===============================================================================");
-        System.out.println("       NETFLOW: NETWORK TRAFFIC MONITORING & MANAGEMENT SYSTEM");
-        System.out.println("                  Milestone 1 Test Harness & Evidence");
-        System.out.println("===============================================================================\n");
+        boolean running = true;
 
-        // ---------------------------------------------------------------------
-        // TEST 1: Valid Device Creation (Test T01)
-        // ---------------------------------------------------------------------
-        System.out.println("--- TEST 1: Valid Device Creation (Test T01) ---");
-        try {
-            NetworkDevice router = new NetworkDevice(
-                    "DEV-RTR-01",
-                    "Core-Gateway-East",
-                    DeviceType.ROUTER,
-                    "192.168.1.1",
-                    "Building-A Rack-04",
-                    DeviceStatus.ONLINE
-            );
+        while (running) {
+            System.out.println("\n========================================================");
+            System.out.println("   NETFLOW: NETWORK TRAFFIC MONITORING SYSTEM");
+            System.out.println("========================================================");
+            System.out.println("1. Register New Network Device");
+            System.out.println("2. View a Network Device by ID");
+            System.out.println("3. Simulate & Save Traffic Flow");
+            System.out.println("4. View All Saved Traffic Flows");
+            System.out.println("5. Run Multithreading Demo (Producer-Consumer)");
+            System.out.println("0. Exit Application");
+            System.out.println("========================================================");
+            System.out.print("Enter your choice: ");
 
-            // Demonstrate polymorphism via Monitorable interface
-            Monitorable monitorableDevice = router;
-            System.out.println("[SUCCESS] NetworkDevice instantiated successfully!");
-            System.out.println("Device ID       : " + router.getId());
-            System.out.println("Device Name     : " + router.getName());
-            System.out.println("Device Type     : " + router.getDeviceType());
-            System.out.println("Management IP   : " + router.getManagementIp());
-            System.out.println("Location        : " + router.getLocation());
-            System.out.println("Status          : " + router.getStatus());
-            System.out.println("\n[Monitoring Summary via Monitorable Interface]:");
-            System.out.println(monitorableDevice.getMonitoringSummary());
+            String choice = scanner.nextLine();
 
-        } catch (InvalidDeviceException e) {
-            System.err.println("[FAIL] Unexpected InvalidDeviceException: " + e.getMessage());
+            try {
+                switch (choice) {
+                    case "1":
+                        registerDevice();
+                        break;
+                    case "2":
+                        viewDevice();
+                        break;
+                    case "3":
+                        simulateTrafficFlow();
+                        break;
+                    case "4":
+                        viewAllFlows();
+                        break;
+                    case "5":
+                        runConcurrencyDemo();
+                        break;
+                    case "0":
+                        running = false;
+                        System.out.println("Exiting NetFlow System. Goodbye!");
+                        break;
+                    default:
+                        System.out.println("[ERROR] Invalid option. Please try again.");
+                }
+            } catch (Exception e) {
+                System.out.println("[ERROR] An unexpected error occurred: " + e.getMessage());
+            }
         }
+        scanner.close();
+    }
 
-        System.out.println();
+    private static void registerDevice() {
+        System.out.println("\n--- REGISTER NEW DEVICE ---");
+        System.out.print("Enter Device ID (e.g., DEV-RTR-01): ");
+        String id = scanner.nextLine();
+        System.out.print("Enter Device Name: ");
+        String name = scanner.nextLine();
+        System.out.print("Enter IP Address: ");
+        String ip = scanner.nextLine();
 
-        // ---------------------------------------------------------------------
-        // TEST 2: Valid Flow Creation
-        // ---------------------------------------------------------------------
-        System.out.println("--- TEST 2: Valid Flow Creation ---");
         try {
-            TrafficFlow flow = new TrafficFlow(
-                    "FLW-9001",
-                    "192.168.1.50",
-                    "10.0.0.1",
-                    NetworkProtocol.TCP,
-                    52134,
-                    443,
-                    15420L,
-                    18456000L,
-                    12500L,
-                    System.currentTimeMillis()
-            );
-
-            System.out.println("[SUCCESS] TrafficFlow instantiated successfully!");
-            System.out.println("Flow ID         : " + flow.getFlowId());
-            System.out.println("Source Endpoint : " + flow.getSourceIp() + ":" + flow.getSourcePort());
-            System.out.println("Dest Endpoint   : " + flow.getDestIp() + ":" + flow.getDestPort());
-            System.out.println("Protocol        : " + flow.getProtocol());
-            System.out.println("Packet Count    : " + String.format("%,d", flow.getPacketCount()));
-            System.out.println("Byte Count      : " + String.format("%,d", flow.getByteCount()) + " bytes");
-            System.out.println("Duration        : " + flow.getDurationMs() + " ms");
-            System.out.println("\n[Formatted Flow Record]:");
-            System.out.println(flow.toString());
-
-        } catch (InvalidFlowException e) {
-            System.err.println("[FAIL] Unexpected InvalidFlowException: " + e.getMessage());
+            // Moved inside try block to handle InvalidDeviceException
+            NetworkDevice device = new NetworkDevice(id, name, DeviceType.ROUTER, ip, "Main Datacenter",
+                    DeviceStatus.ONLINE);
+            deviceDAO.addDevice(device);
+            System.out.println("[SUCCESS] Device registered in database successfully!");
+        } catch (Exception e) {
+            System.out.println("[ERROR] Failed to save device: " + e.getMessage());
         }
+    }
 
-        System.out.println();
+    private static void viewDevice() {
+        System.out.println("\n--- VIEW DEVICE ---");
+        System.out.print("Enter Device ID to search: ");
+        String id = scanner.nextLine();
 
-        // ---------------------------------------------------------------------
-        // TEST 3: Invalid Device (Test T04 / T05)
-        // ---------------------------------------------------------------------
-        System.out.println("--- TEST 3: Invalid Device Validation (Tests T04 & T05) ---");
-
-        // 3a: Malformed IP (Test T04)
-        System.out.println("[Subtest 3a: Attempting to create NetworkDevice with malformed IP (999.300.1.1)...]");
         try {
-            new NetworkDevice("DEV-BAD-01", "Edge-Switch", DeviceType.SWITCH, "999.300.1.1");
-            System.err.println("  [FAIL] Malformed IP did not throw an InvalidDeviceException!");
-        } catch (InvalidDeviceException e) {
-            System.out.println("  [PASS] Caught expected InvalidDeviceException:");
-            System.out.println("         --> " + e.getMessage());
+            NetworkDevice device = deviceDAO.getDevice(id);
+            System.out.println("[RESULT] " + device.getMonitoringSummary());
+        } catch (Exception e) {
+            System.out.println("[ERROR] Device not found or error occurred: " + e.getMessage());
         }
+    }
 
-        // 3b: Blank Device Name (Test T05)
-        System.out.println("\n[Subtest 3b: Attempting to create NetworkDevice with blank name ('   ')...]");
+    private static void simulateTrafficFlow() {
+        System.out.println("\n--- SIMULATE TRAFFIC FLOW ---");
+        System.out.print("Enter Source IP (e.g., 192.168.1.10): ");
+        String srcIp = scanner.nextLine();
+        System.out.print("Enter Destination IP (e.g., 8.8.8.8): ");
+        String destIp = scanner.nextLine();
+        System.out.print("Enter Bytes Transferred: ");
+        long bytes = Long.parseLong(scanner.nextLine());
+
+        String flowId = "FLW-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
         try {
-            new NetworkDevice("DEV-BAD-02", "   ", DeviceType.SERVER, "10.0.0.5");
-            System.err.println("  [FAIL] Blank device name did not throw an InvalidDeviceException!");
-        } catch (InvalidDeviceException e) {
-            System.out.println("  [PASS] Caught expected InvalidDeviceException:");
-            System.out.println("         --> " + e.getMessage());
+            // Moved inside try block to handle InvalidFlowException
+            TrafficFlow flow = new TrafficFlow(flowId, srcIp, destIp, NetworkProtocol.TCP, 443, 443, 150L, bytes, 1200L,
+                    System.currentTimeMillis());
+            flowDAO.addFlow(flow);
+            System.out.println("[SUCCESS] Traffic Flow '" + flowId + "' saved to database!");
+        } catch (Exception e) {
+            System.out.println("[ERROR] Failed to save flow: " + e.getMessage());
         }
+    }
 
-        System.out.println();
-
-        // ---------------------------------------------------------------------
-        // TEST 4: Invalid Flow (Test T06 / T07)
-        // ---------------------------------------------------------------------
-        System.out.println("--- TEST 4: Invalid Flow Validation (Tests T06 & T07) ---");
-
-        // 4a: Out-of-range port (Test T06)
-        System.out.println("[Subtest 4a: Attempting to create TrafficFlow with out-of-range port (70000)...]");
+    private static void viewAllFlows() {
+        System.out.println("\n--- SAVED TRAFFIC FLOWS ---");
         try {
-            new TrafficFlow(
-                    "FLW-BAD-01",
-                    "192.168.1.1",
-                    "10.0.0.1",
-                    NetworkProtocol.TCP,
-                    70000, // Invalid port > 65535
-                    80
-            );
-            System.err.println("  [FAIL] Port 70000 did not throw an InvalidFlowException!");
-        } catch (InvalidFlowException e) {
-            System.out.println("  [PASS] Caught expected InvalidFlowException:");
-            System.out.println("         --> " + e.getMessage());
+            List<TrafficFlow> flows = flowDAO.getAllFlows();
+            if (flows.isEmpty()) {
+                System.out.println("No flows found in the database.");
+            } else {
+                for (TrafficFlow flow : flows) {
+                    System.out.println("Flow ID: " + flow.getFlowId() + " | " + flow.getSourceIp() + " -> "
+                            + flow.getDestIp() + " | Bytes: " + flow.getByteCount());
+                }
+                System.out.println("Total Flows: " + flows.size());
+            }
+        } catch (Exception e) {
+            System.out.println("[ERROR] Could not fetch flows: " + e.getMessage());
         }
+    }
 
-        // 4b: Negative byte count (Test T07)
-        System.out.println("\n[Subtest 4b: Attempting to create TrafficFlow with negative byte count (-500)...]");
+    private static void runConcurrencyDemo() {
+        System.out.println("\n--- RUNNING MULTITHREADING DEMO (PRODUCER-CONSUMER) ---");
         try {
-            new TrafficFlow(
-                    "FLW-BAD-02",
-                    "192.168.1.1",
-                    "10.0.0.1",
-                    NetworkProtocol.UDP,
-                    5300,
-                    53,
-                    100L,
-                    -500L, // Invalid negative bytes
-                    1000L,
-                    System.currentTimeMillis()
-            );
-            System.err.println("  [FAIL] Negative byte count did not throw an InvalidFlowException!");
-        } catch (InvalidFlowException e) {
-            System.out.println("  [PASS] Caught expected InvalidFlowException:");
-            System.out.println("         --> " + e.getMessage());
+            FlowQueue queue = new FlowQueue(5);
+            Thread producer = new Thread(new FlowProducer(queue), "Data-Collector");
+            Thread consumer = new Thread(new FlowConsumer(queue), "Data-Analyzer");
+
+            producer.start();
+            consumer.start();
+
+            producer.join();
+            consumer.join();
+            System.out.println("[SUCCESS] Multithreading demo completed.");
+        } catch (Exception e) {
+            System.out.println("[ERROR] Concurrency error: " + e.getMessage());
         }
-
-        System.out.println();
-
-        // ---------------------------------------------------------------------
-        // TEST 5: Network Alert & ICMP Optional Port Demonstration
-        // ---------------------------------------------------------------------
-        System.out.println("--- TEST 5: Alert Model & Protocol Port Wrapper (ICMP null port) ---");
-        try {
-            // Flow with null ports (valid for ICMP protocol)
-            TrafficFlow icmpFlow = new TrafficFlow(
-                    "FLW-ICMP-01",
-                    "192.168.1.100",
-                    "8.8.8.8",
-                    NetworkProtocol.ICMP,
-                    null, // Nullable port wrapper class
-                    null
-            );
-            System.out.println("[SUCCESS] ICMP TrafficFlow with null ports instantiated:");
-            System.out.println("  " + icmpFlow);
-
-            // Alert associated with the flow
-            NetworkAlert alert = new NetworkAlert(
-                    "ALT-001",
-                    AlertSeverity.CRITICAL,
-                    "High ICMP Echo volume detected (possible ping flood)",
-                    icmpFlow.getFlowId()
-            );
-            System.out.println("\n[SUCCESS] NetworkAlert created:");
-            System.out.println("  " + alert);
-
-            alert.acknowledge();
-            System.out.println("After acknowledgment:");
-            System.out.println("  " + alert);
-
-        } catch (InvalidFlowException e) {
-            System.err.println("[FAIL] Unexpected InvalidFlowException: " + e.getMessage());
-        }
-
-        System.out.println("\n===============================================================================");
-        System.out.println("            ALL MILESTONE 1 VERIFICATION TESTS PASSED SUCCESSFULLY");
-        System.out.println("===============================================================================");
     }
 }
