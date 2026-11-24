@@ -18,7 +18,7 @@ public final class DBConnection {
     private static final String DEFAULT_URL =
             "jdbc:mysql://localhost:3306/netflow_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
     private static final String DEFAULT_USER = "root";
-    private static final String DEFAULT_PASSWORD = "your_mysql_password";
+    private static final String DEFAULT_PASSWORD = "Rakesh_09";
     // ========================================================
 
     private static final String URL = envOrDefault("NETFLOW_DB_URL", DEFAULT_URL);
