@@ -7,33 +7,40 @@ import java.sql.SQLException;
 /**
  * Centralized JDBC Database Connection Manager.
  * Provides static access to database connections using {@link DriverManager}.
- * Automatically resolves local credentials (root/root, root/1234, or environment variable)
- * for seamless evaluation across different lab/local environments.
+ *
+ * Connection details are set in the three constants below. Each one can also be
+ * overridden with an environment variable (NETFLOW_DB_URL, NETFLOW_DB_USER,
+ * NETFLOW_DB_PASSWORD), so the password does not have to be written in the code.
  */
 public final class DBConnection {
 
-    private static final String DEFAULT_URL = "jdbc:mysql://localhost:3306/netflow_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+    // ===== EDIT THESE THREE VALUES FOR YOUR MYSQL SETUP =====
+    private static final String DEFAULT_URL =
+            "jdbc:mysql://localhost:3306/netflow_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
     private static final String DEFAULT_USER = "root";
-    private static final String[] CANDIDATE_PASSWORDS = {"root", "1234", "campus_user", ""};
+    private static final String DEFAULT_PASSWORD = "your_mysql_password";
+    // ========================================================
 
-    private static final String URL = System.getenv("NETFLOW_DB_URL") != null
-            ? System.getenv("NETFLOW_DB_URL") : DEFAULT_URL;
-    private static final String USER = System.getenv("NETFLOW_DB_USER") != null
-            ? System.getenv("NETFLOW_DB_USER") : DEFAULT_USER;
-
-    // Cached successful password once established
-    private static volatile String activePassword = System.getenv("NETFLOW_DB_PASSWORD");
+    private static final String URL = envOrDefault("NETFLOW_DB_URL", DEFAULT_URL);
+    private static final String USER = envOrDefault("NETFLOW_DB_USER", DEFAULT_USER);
+    private static final String PASSWORD = envOrDefault("NETFLOW_DB_PASSWORD", DEFAULT_PASSWORD);
 
     static {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException e) {
-            System.err.println("[WARN] MySQL JDBC Driver 'com.mysql.cj.jdbc.Driver' not found on classpath.");
+            System.err.println("[WARN] MySQL JDBC Driver 'com.mysql.cj.jdbc.Driver' not found on classpath. "
+                    + "Make sure the mysql-connector-j jar is in the lib/ folder.");
         }
     }
 
     private DBConnection() {
         // Prevent instantiation
+    }
+
+    private static String envOrDefault(String name, String defaultValue) {
+        String value = System.getenv(name);
+        return (value != null) ? value : defaultValue;
     }
 
     /**
@@ -43,22 +50,7 @@ public final class DBConnection {
      * @throws SQLException if a database access error occurs or credentials fail.
      */
     public static Connection getConnection() throws SQLException {
-        if (activePassword != null) {
-            return DriverManager.getConnection(URL, USER, activePassword);
-        }
-
-        // Try candidate passwords to find the matching local configuration
-        SQLException lastException = null;
-        for (String candidate : CANDIDATE_PASSWORDS) {
-            try {
-                Connection conn = DriverManager.getConnection(URL, USER, candidate);
-                activePassword = candidate; // Cache working password
-                return conn;
-            } catch (SQLException e) {
-                lastException = e;
-            }
-        }
-        throw (lastException != null) ? lastException : new SQLException("Failed to connect to " + URL);
+        return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 
     /**
