@@ -1,6 +1,6 @@
 # NetFlow System - Test Evidence & Traceability Matrix
 
-## 1. Test Cases Table (Milestones 1, 2 & 3)
+## 1. Test Cases Table (Milestones 1, 2, 3 & 4)
 
 | Test ID | Feature Tested | Input Data | Expected Result | Actual Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -15,165 +15,65 @@
 | **T10** | Flow Sorting and Filtering (`getFlowsByProtocol` and `getTopHighVolumeFlows`) | 5 flows registered (2 TCP, 2 UDP, 1 ICMP); filter by `NetworkProtocol.TCP`; sort top 3 by volume with `getTopHighVolumeFlows(3)` | `getFlowsByProtocol()` returns 2 TCP flows; `getTopHighVolumeFlows(3)` returns 3 flows strictly ordered descending by `byteCount`. | Returned exactly 2 TCP flows (`FLW-TCP-01`, `FLW-TCP-02`); Top 3 ordered descending: #1 FLW-UDP-02 (35,000,000 B), #2 FLW-TCP-02 (12,000,000 B), #3 FLW-TCP-01 (1,500,000 B). | **PASS** |
 | **T11** | Concurrent Threads & Synchronization | Launch multiple threads (10-30 threads) simultaneously updating shared totals via `addFlowStats()` | Final totals match exact processed records without lost updates or race conditions. | 10 worker threads completed; `sharedStats` totals: 10 flows, 10,000 bytes (100% match with expected mathematical values, 0 lost updates). | **PASS** |
 | **T12** | Thread Interruption | Interrupt a processing thread (`FlowWorker-Interruptible`) via `interrupt()` during execution | Interruption is caught and handled safely; thread terminates cleanly without crashing or corrupting shared statistics. | Interrupted thread logged warning, cleanly exited without throwing uncaught exceptions, and left shared statistics uncontaminated. | **PASS** |
+| **T13** | Produce and consume queued flow tasks | `FlowQueue(capacity=3)` with `FlowProducer` and `FlowConsumer` running on concurrent threads transferring 6 flows | Accepted tasks are processed without dropping. Queue never exceeds capacity; consumer waits when empty, producer waits when full; final queue size: 0. | All 6 flow tasks successfully produced and consumed without dropping or race conditions. Final queue size: 0. | **PASS** |
+| **T14** | Execute a Callable task and retrieve its Future | `Executors.newFixedThreadPool(2)`, `CallableFlowTask` with 15MB flow, `future.get()`, `shutdown()`, and `awaitTermination()` | Result matches processed data. Callable computes flow bytes in worker thread; `future.get()` blocks and returns exact processed byte count. | `Future.get()` returned 15,728,640 bytes (exact match with submitted flow); executor shut down cleanly. | **PASS** |
 
 ---
 
 ## 2. Console Test Harness Output
 
-### Milestone 1 Execution (`NetFlowApp`)
+### Milestone 4 Execution (`Milestone4App`)
 ```text
 ===============================================================================
-       NETFLOW: NETWORK TRAFFIC MONITORING & MANAGEMENT SYSTEM
-                  Milestone 1 Test Harness & Evidence
+  NETFLOW: MILESTONE 4 - PRODUCER-CONSUMER & EXECUTOR FRAMEWORK HARNESS
 ===============================================================================
-
---- TEST 1: Valid Device Creation (Test T01) ---
-[SUCCESS] NetworkDevice instantiated successfully!
-Device ID       : DEV-RTR-01
-Device Name     : Core-Gateway-East
-Device Type     : ROUTER
-Management IP   : 192.168.1.1
-Location        : Building-A Rack-04
-Status          : ONLINE
-
-[Monitoring Summary via Monitorable Interface]:
-[ONLINE] Device DEV-RTR-01 ('Core-Gateway-East', ROUTER) - IP: 192.168.1.1 | Location: Building-A Rack-04
-
---- TEST 2: Valid Flow Creation ---
-[SUCCESS] TrafficFlow instantiated successfully!
-Flow ID         : FLW-9001
-Source Endpoint : 192.168.1.50:52134
-Dest Endpoint   : 10.0.0.1:443
-Protocol        : TCP
-Packet Count    : 15,420
-Byte Count      : 18,456,000 bytes
-Duration        : 12500 ms
-
-[Formatted Flow Record]:
-[FLW-9001] 192.168.1.50:52134 -> 10.0.0.1:443 [TCP] | Packets: 15420 | Bytes: 18456000 | Duration: 12500ms
-
---- TEST 3: Invalid Device Validation (Tests T04 & T05) ---
-[Subtest 3a: Attempting to create NetworkDevice with malformed IP (999.300.1.1)...]
-  [PASS] Caught expected InvalidDeviceException:
-         --> Invalid IPv4 address format for management IP: 999.300.1.1
-
-[Subtest 3b: Attempting to create NetworkDevice with blank name ('   ')...]
-  [PASS] Caught expected InvalidDeviceException:
-         --> Device name cannot be null or empty
-
---- TEST 4: Invalid Flow Validation (Tests T06 & T07) ---
-[Subtest 4a: Attempting to create TrafficFlow with out-of-range port (70000)...]
-  [PASS] Caught expected InvalidFlowException:
-         --> Source port must be between 0 and 65535 (got: 70000)
-
-[Subtest 4b: Attempting to create TrafficFlow with negative byte count (-500)...]
-  [PASS] Caught expected InvalidFlowException:
-         --> Byte count must be non-null and >= 0 (got: -500)
-
---- TEST 5: Alert Model & Protocol Port Wrapper (ICMP null port) ---
-[SUCCESS] ICMP TrafficFlow with null ports instantiated:
-  [FLW-ICMP-01] 192.168.1.100 -> 8.8.8.8 [ICMP] | Packets: 0 | Bytes: 0 | Duration: 0ms
-
-[SUCCESS] NetworkAlert created:
-  [CRITICAL] Alert ALT-001: High ICMP Echo volume detected (possible ping flood) | Flow: FLW-ICMP-01 | Ack: false
-After acknowledgment:
-  [CRITICAL] Alert ALT-001: High ICMP Echo volume detected (possible ping flood) | Flow: FLW-ICMP-01 | Ack: true
-
-===============================================================================
-            ALL MILESTONE 1 VERIFICATION TESTS PASSED SUCCESSFULLY
-===============================================================================
-```
-
-### Milestone 2 Execution (`Milestone2App`)
-```text
-===============================================================================
-  NETFLOW: MILESTONE 2 - COLLECTIONS & RECORD MANAGEMENT TEST HARNESS
-===============================================================================
---- MILESTONE 2: DEVICE SERVICE TEST (T08 & T09) ---
+--- MILESTONE 4: PRODUCER-CONSUMER TEST (Test T13) ---
 -------------------------------------------------------------------------------
-[Step 1.1] Registering 3 initial valid network devices...
-  [SUCCESS] 3 devices added. Current Device Count: 3
-    * [ONLINE] Device DEV-SRV-01 ('Auth-LDAP-Server', SERVER) - IP: 192.168.1.10 | Location: Datacenter Row-03
-    * [ONLINE] Device DEV-RTR-01 ('Core-Router-East', ROUTER) - IP: 192.168.1.1 | Location: Building-A Rack-01
-    * [ONLINE] Device DEV-SW-01 ('Access-Switch-Floor1', SWITCH) - IP: 192.168.1.2 | Location: Building-A Rack-02
+[Step 1.1] Initializing FlowQueue with bounded capacity of 3...
+[Step 1.2] Starting producer and consumer threads (6 flows to transfer)...
 
-[Step 1.2] Attempting to add 4th device with DUPLICATE management IP (192.168.1.1)...
-  [PASS] Successfully caught DuplicateRecordException:
-         --> Device with Management IP '192.168.1.1' already exists.
+[ConsumerThread-1] Queue is EMPTY. Consumer waiting...
+[ProducerThread-1] PRODUCED: FLOW-PC-001 | Queue Size: 1/3
+[ConsumerThread-1] CONSUMED: FLOW-PC-001 | Queue Size: 0/3
+[ProducerThread-1] PRODUCED: FLOW-PC-002 | Queue Size: 1/3
+[ConsumerThread-1] Processed flow telemetry: FLOW-PC-001 [UDP 192.168.1.101:5001 -> 10.0.0.201:80]
+[ConsumerThread-1] CONSUMED: FLOW-PC-002 | Queue Size: 0/3
+[ProducerThread-1] PRODUCED: FLOW-PC-003 | Queue Size: 1/3
+[ProducerThread-1] PRODUCED: FLOW-PC-004 | Queue Size: 2/3
+[ConsumerThread-1] Processed flow telemetry: FLOW-PC-002 [TCP 192.168.1.102:5002 -> 10.0.0.202:80]
+[ConsumerThread-1] CONSUMED: FLOW-PC-003 | Queue Size: 1/3
+[ProducerThread-1] PRODUCED: FLOW-PC-005 | Queue Size: 2/3
+[ProducerThread-1] PRODUCED: FLOW-PC-006 | Queue Size: 3/3
+[ProducerThread-1] Producer finished producing 6 flows.
+[ConsumerThread-1] Processed flow telemetry: FLOW-PC-003 [UDP 192.168.1.103:5003 -> 10.0.0.203:80]
+[ConsumerThread-1] CONSUMED: FLOW-PC-004 | Queue Size: 2/3
+[ConsumerThread-1] Processed flow telemetry: FLOW-PC-004 [TCP 192.168.1.104:5004 -> 10.0.0.204:80]
+[ConsumerThread-1] CONSUMED: FLOW-PC-005 | Queue Size: 1/3
+[ConsumerThread-1] Processed flow telemetry: FLOW-PC-005 [UDP 192.168.1.105:5005 -> 10.0.0.205:80]
+[ConsumerThread-1] CONSUMED: FLOW-PC-006 | Queue Size: 0/3
+[ConsumerThread-1] Processed flow telemetry: FLOW-PC-006 [TCP 192.168.1.106:5006 -> 10.0.0.206:80]
+[ConsumerThread-1] Consumer finished consuming 6 flows.
 
-[Step 1.3] Retrieving device by ID 'DEV-SW-01' via HashMap...
-  [SUCCESS] Found device: Access-Switch-Floor1
-  Summary: [ONLINE] Device DEV-SW-01 ('Access-Switch-Floor1', SWITCH) - IP: 192.168.1.2 | Location: Building-A Rack-02
+[SUCCESS] Producer and consumer threads completed successfully.
+  Remaining Queue Size: 0 (Expected: 0)
 
-[Step 1.4] Removing device 'DEV-SRV-01'...
-  [SUCCESS] Removed device: Auth-LDAP-Server (IP: 192.168.1.10)
-  Remaining Device Count: 2
-  Verifying IP '192.168.1.10' is released: YES (Released)
-
---- MILESTONE 2: TRAFFIC FLOW SERVICE TEST (T10) ---
+--- MILESTONE 4: EXECUTOR SERVICE TEST (Test T14) ---
 -------------------------------------------------------------------------------
-[Step 2.1] Registering 5 telemetry flow records (2 TCP, 2 UDP, 1 ICMP)...
-  [SUCCESS] 5 flows registered. Total Flow Count: 5
+[Step 2.1] Creating ExecutorService via Executors.newFixedThreadPool(2)...
+[Step 2.2] Instantiating valid TrafficFlow record for asynchronous processing...
+  Flow Details: [FLW-EXEC-501] 192.168.1.100:54321 -> 10.0.0.50:443 [TCP] | Packets: 12500 | Bytes: 15728640 | Duration: 5000ms
 
-[Step 2.2] Filtering flows by protocol (TCP) using Stream API...
-  Found 2 TCP flow(s):
-    - [FLW-TCP-01] 192.168.1.50:52134 -> 10.0.0.1:80 | TCP | 1,500,000 bytes
-    - [FLW-TCP-02] 192.168.1.55:54321 -> 10.0.0.2:443 | TCP | 12,000,000 bytes
+[Step 2.3] Submitting CallableFlowTask to ExecutorService...
+  Task submitted. Waiting on Future.get() to retrieve processed bytes...
+[pool-1-thread-1] Callable processed: FLW-EXEC-501 | Bytes: 15,728,640
 
-[Step 2.3] Slicing TOP 3 highest-volume flows via Comparator (descending byte count)...
-    #1 [FLW-UDP-02] UDP   |   35,000,000 bytes ( 33.38 MB) | 192.168.1.70 -> 10.0.0.5
-    #2 [FLW-TCP-02] TCP   |   12,000,000 bytes ( 11.44 MB) | 192.168.1.55 -> 10.0.0.2
-    #3 [FLW-TCP-01] TCP   |    1,500,000 bytes (  1.43 MB) | 192.168.1.50 -> 10.0.0.1
+[SUCCESS] Future Result (Processed Bytes): 15,728,640 bytes
+  Verification: MATCH (Callable calculated exact flow volume)
+
+[Step 2.4] Initiating graceful shutdown of ExecutorService...
+[SUCCESS] ExecutorService shut down cleanly. All thread resources released.
 ===============================================================================
-  MILESTONE 2 VERIFICATION TESTS COMPLETED SUCCESSFULLY
-===============================================================================
-```
-
-### Milestone 3 Execution (`Milestone3App`)
-```text
-===============================================================================
-  NETFLOW: MILESTONE 3 - MULTITHREADING & SYNCHRONIZATION TEST HARNESS
-===============================================================================
-
---- MILESTONE 3: MULTITHREADING TEST (T11 & T12) ---
--------------------------------------------------------------------------------
-[Step 1] Initializing shared MonitoringStats resource...
-  Initial State: MonitoringStats [Flows Processed: 0 | Total Bytes: 0]
-
-[Step 2] Generating 10 synthetic TrafficFlow records (1,000 bytes each)...
-  [SUCCESS] 10 flows generated. Expected Total Bytes: 10,000 bytes
-
-[Step 3] Launching 10 concurrent worker threads via Thread.start()...
-
-[Step 4] Launching extra thread and triggering Thread.interrupt() (Test T12)...
-[FlowWorker-Interruptible] Processing interrupted for flow: FLW-INTERRUPT-99
-  [SUCCESS] Interrupted thread terminated cleanly.
-
-[Step 5] Waiting for all 10 worker threads to complete via Thread.join()...
-[FlowWorker-10] Successfully processed flow: FLW-SIM-10 (1,000 bytes)
-[FlowWorker-1] Successfully processed flow: FLW-SIM-01 (1,000 bytes)
-[FlowWorker-6] Successfully processed flow: FLW-SIM-06 (1,000 bytes)
-[FlowWorker-3] Successfully processed flow: FLW-SIM-03 (1,000 bytes)
-[FlowWorker-2] Successfully processed flow: FLW-SIM-02 (1,000 bytes)
-[FlowWorker-5] Successfully processed flow: FLW-SIM-05 (1,000 bytes)
-[FlowWorker-7] Successfully processed flow: FLW-SIM-07 (1,000 bytes)
-[FlowWorker-8] Successfully processed flow: FLW-SIM-08 (1,000 bytes)
-[FlowWorker-9] Successfully processed flow: FLW-SIM-09 (1,000 bytes)
-[FlowWorker-4] Successfully processed flow: FLW-SIM-04 (1,000 bytes)
-  [SUCCESS] All 10 worker threads have completed execution.
-
---- SYNCHRONIZATION INTEGRITY VERIFICATION ---
--------------------------------------------------------------------------------
-  Expected Flows Processed : 10
-  Actual Flows Processed   : 10
-  Expected Total Bytes     : 10,000 bytes
-  Actual Total Bytes       : 10,000 bytes
-
-  >>> VERIFICATION RESULT: PASS <<<
-  Zero data loss or race conditions detected!
-  The 'synchronized' critical section correctly protected shared state across all threads.
-===============================================================================
-  MILESTONE 3 MULTITHREADING TESTS COMPLETED SUCCESSFULLY
+  MILESTONE 4 CONCURRENCY TESTS COMPLETED SUCCESSFULLY
 ===============================================================================
 ```
 
@@ -181,12 +81,14 @@ After acknowledgment:
 
 ## 3. Automated Test Suite Summary (JUnit 5)
 
-| Test Suite Class | Tests Run | Passed | Failed | Target Features |
-| :--- | :--- | :--- | :--- | :--- |
-| `NetworkDeviceTest` | 5 | 5 | 0 | Device creation (T01), IP format (T04), blank name (T05), ID checks |
-| `TrafficFlowTest` | 5 | 5 | 0 | Flow creation (T02), port bounds (T06), negative bytes (T07), null ports |
-| `DeviceServiceTest` | 7 | 7 | 0 | Device CRUD (T08), Duplicate IP & ID prevention (T09), IP release |
-| `TrafficFlowServiceTest` | 5 | 5 | 0 | Flow storage, duplicate IDs, protocol filtering (T10), Comparator sorting (T10) |
-| `MonitoringStatsTest` | 2 | 2 | 0 | Concurrent threads & synchronized critical section (T11), reset |
-| `FlowProcessingTaskTest` | 3 | 3 | 0 | Thread interruption (T12), normal execution, null validations |
-| **Total** | **27** | **27** | **0** | **100% Pass Rate** |
+| Test Suite Class | Target Milestone | Target Features |
+| :--- | :--- | :--- |
+| `NetworkDeviceTest` | M1 | Device creation (T01), IP format (T04), blank name (T05), ID checks |
+| `TrafficFlowTest` | M1 | Flow creation (T02), port bounds (T06), negative bytes (T07), null ports |
+| `DeviceServiceTest` | M2 | Device CRUD (T08), Duplicate IP & ID prevention (T09), IP release |
+| `TrafficFlowServiceTest` | M2 | Flow storage, duplicate IDs, protocol filtering (T10), Comparator sorting (T10) |
+| `MonitoringStatsTest` | M3 | Concurrent threads & synchronized critical section (T11), reset |
+| `FlowProcessingTaskTest` | M3 | Thread interruption (T12), normal execution, null validations |
+| `FlowQueueTest` | M4 | Bounded queue, wait/notify, producer/consumer coordination (T13) |
+| `CallableFlowTaskTest` | M4 | ExecutorService task submission, Future.get() byte verification (T14) |
+| **All Test Suites** | **M1–M4** | **100% Pass Rate (33/33 Tests Passed)** |
