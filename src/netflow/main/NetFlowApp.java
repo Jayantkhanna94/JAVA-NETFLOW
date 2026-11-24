@@ -34,7 +34,7 @@ public class NetFlowApp {
             System.out.println("2. View a Network Device by ID");
             System.out.println("3. Simulate & Save Traffic Flow");
             System.out.println("4. View All Saved Traffic Flows");
-            System.out.println("5. Run Multithreading Demo (Producer-Consumer)");
+            System.out.println("5. Run Multithreading Demo");
             System.out.println("0. Exit Application");
             System.out.println("========================================================");
             System.out.print("Enter your choice: ");
